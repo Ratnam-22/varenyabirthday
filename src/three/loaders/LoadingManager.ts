@@ -5,6 +5,12 @@ export class LoadingManager {
   private totalItems: number = 0;
   private loadedItems: number = 0;
   private callbacks: Set<(progress: LoadingProgress) => void> = new Set();
+  private cachedProgress: LoadingProgress = {
+    total: 0,
+    loaded: 0,
+    percentage: 100,
+    isLoading: false,
+  };
 
   private constructor() {}
 
@@ -17,17 +23,20 @@ export class LoadingManager {
 
   public registerItems(count: number): void {
     this.totalItems += count;
+    this.updateCachedProgress();
     this.notify();
   }
 
   public itemLoaded(): void {
     this.loadedItems += 1;
+    this.updateCachedProgress();
     this.notify();
   }
 
-  public getProgress(): LoadingProgress {
-    const percentage = this.totalItems === 0 ? 100 : Math.round((this.loadedItems / this.totalItems) * 100);
-    return {
+  private updateCachedProgress(): void {
+    const percentage =
+      this.totalItems === 0 ? 100 : Math.round((this.loadedItems / this.totalItems) * 100);
+    this.cachedProgress = {
       total: this.totalItems,
       loaded: this.loadedItems,
       percentage,
@@ -35,15 +44,19 @@ export class LoadingManager {
     };
   }
 
+  public getProgress(): LoadingProgress {
+    return this.cachedProgress;
+  }
+
   public subscribe(cb: (progress: LoadingProgress) => void): () => void {
     this.callbacks.add(cb);
-    cb(this.getProgress());
-    return () => this.callbacks.delete(cb);
+    return () => {
+      this.callbacks.delete(cb);
+    };
   }
 
   private notify(): void {
-    const progress = this.getProgress();
-    this.callbacks.forEach((cb) => cb(progress));
+    this.callbacks.forEach((cb) => cb(this.cachedProgress));
   }
 }
 
