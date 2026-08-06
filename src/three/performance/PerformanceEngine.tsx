@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { usePerformanceMonitor } from '@react-three/drei';
+import React, { useRef, useState } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { PerformancePreset, PerformanceSettings } from './types';
 import { rendererManager } from '../renderer/RendererManager';
 
@@ -22,23 +22,29 @@ export const PerformanceEngine: React.FC<PerformanceEngineProps> = ({
   initialPreset = 'High',
   children,
 }) => {
-  const [currentPreset, setCurrentPreset] = React.useState<PerformancePreset>(initialPreset);
+  const [currentPreset, setCurrentPreset] = useState<PerformancePreset>(initialPreset);
   const settings = presets[currentPreset];
+  const frameCount = useRef(0);
+  const lastTime = useRef(0);
 
-  usePerformanceMonitor({
-    onDecline: () => {
-      if (currentPreset === 'Ultra') setCurrentPreset('High');
-      else if (currentPreset === 'High') setCurrentPreset('Medium');
-      else if (currentPreset === 'Medium') setCurrentPreset('Low');
-      else if (currentPreset === 'Low') setCurrentPreset('BatterySaver');
-    },
-    onIncline: () => {
-      if (currentPreset === 'BatterySaver') setCurrentPreset('Low');
-      else if (currentPreset === 'Low') setCurrentPreset('Medium');
-    },
-    onChange: ({ factor }) => {
-      rendererManager.setDpr(Math.max(0.75, settings.dpr * factor));
-    },
+  useFrame((state) => {
+    frameCount.current += 1;
+    const time = state.clock.getElapsedTime();
+    if (time - lastTime.current >= 2) {
+      const fps = frameCount.current / (time - lastTime.current);
+      frameCount.current = 0;
+      lastTime.current = time;
+
+      if (fps < 30) {
+        if (currentPreset === 'Ultra') setCurrentPreset('High');
+        else if (currentPreset === 'High') setCurrentPreset('Medium');
+        else if (currentPreset === 'Medium') setCurrentPreset('Low');
+        else if (currentPreset === 'Low') setCurrentPreset('BatterySaver');
+        rendererManager.setDpr(Math.max(0.75, settings.dpr * 0.8));
+      } else if (fps > 55) {
+        if (currentPreset === 'BatterySaver') setCurrentPreset('Low');
+      }
+    }
   });
 
   return <group name="performance-engine">{children}</group>;
