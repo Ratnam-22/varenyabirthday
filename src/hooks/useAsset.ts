@@ -1,7 +1,7 @@
 'use client';
 
 import { useSyncExternalStore, useCallback } from 'react';
-import { loadingManager } from '@/three/loaders/LoadingManager';
+import { LoadingManager } from '@/three/loaders/LoadingManager';
 import { LoadingProgress } from '@/three/loaders/types';
 
 const SERVER_SNAPSHOT: LoadingProgress = {
@@ -12,16 +12,14 @@ const SERVER_SNAPSHOT: LoadingProgress = {
 };
 
 const getSnapshot = () => {
-  if (!loadingManager) return SERVER_SNAPSHOT;
-  return loadingManager.getProgress();
+  return LoadingManager.getInstance().getProgress();
 };
 
 const getServerSnapshot = () => SERVER_SNAPSHOT;
 
 export function useAsset() {
   const subscribe = useCallback((onStoreChange: () => void) => {
-    if (!loadingManager) return () => {};
-    return loadingManager.subscribe(onStoreChange);
+    return LoadingManager.getInstance().subscribe(onStoreChange);
   }, []);
 
   const progress = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
