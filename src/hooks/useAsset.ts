@@ -11,14 +11,18 @@ const SERVER_SNAPSHOT: LoadingProgress = {
   isLoading: false,
 };
 
-const getSnapshot = () => loadingManager.getProgress();
+const getSnapshot = () => {
+  if (!loadingManager) return SERVER_SNAPSHOT;
+  return loadingManager.getProgress();
+};
+
 const getServerSnapshot = () => SERVER_SNAPSHOT;
 
 export function useAsset() {
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => loadingManager.subscribe(onStoreChange),
-    []
-  );
+  const subscribe = useCallback((onStoreChange: () => void) => {
+    if (!loadingManager) return () => {};
+    return loadingManager.subscribe(onStoreChange);
+  }, []);
 
   const progress = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
