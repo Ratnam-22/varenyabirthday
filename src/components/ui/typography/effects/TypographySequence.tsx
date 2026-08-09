@@ -14,12 +14,14 @@ export interface TypographySequenceProps {
   text: string;
   preset?: TypographyPreset;
   className?: string;
+  standalone?: boolean;
 }
 
 export const TypographySequence: React.FC<TypographySequenceProps> = ({
   text,
   preset = 'cinematic',
   className = '',
+  standalone = false,
 }) => {
   const prefersReducedMotion = useReducedMotion();
   const [phase, setPhase] = useState<'hidden' | 'fading' | 'revealing' | 'settling' | 'breathing'>(
@@ -67,62 +69,68 @@ export const TypographySequence: React.FC<TypographySequenceProps> = ({
     return () => cancelAnimationFrame(animId);
   }, [prefersReducedMotion]);
 
+  const content = (
+    <div
+      data-preset={preset}
+      className={`relative flex flex-col items-center justify-center text-center transition-opacity duration-1000 ease-out will-change-transform ${className}`}
+      style={{
+        opacity: phase === 'hidden' ? 0 : 1,
+        transform: prefersReducedMotion
+          ? 'none'
+          : `translate3d(${parallax.x}px, ${parallax.y}px, 0)`,
+      }}
+    >
+      {/* Layer 1: Blurred Glow Depth Backdrop */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 z-0 flex items-center justify-center select-none blur-md opacity-60 animate-pulse pointer-events-none"
+        style={{
+          transform: 'scale(1.04) translate3d(0, 2px, 0)',
+        }}
+      >
+        <Display
+          font="garamond"
+          className="text-[clamp(3rem,7vw,6rem)] font-light tracking-[0.2em] text-[#d4af37]"
+        >
+          {text}
+        </Display>
+      </div>
+
+      {/* Layer 2: Main Animated Typography */}
+      <div
+        className={`relative z-10 select-none ${
+          phase === 'breathing' ? 'animate-[floatBreathing_7s_easeInOut_infinite]' : ''
+        }`}
+      >
+        <Display
+          font="garamond"
+          className="text-[clamp(3rem,7vw,6rem)] font-light tracking-[0.2em] leading-tight text-transparent bg-clip-text bg-[linear-gradient(110deg,#ffffff,45%,#d4af37,55%,#ffffff)] bg-[length:250%_100%] animate-[shimmerGradient_18s_linear_infinite]"
+          style={{
+            filter:
+              phase === 'breathing'
+                ? 'drop-shadow(0 0 16px rgba(212, 175, 55, 0.45))'
+                : 'drop-shadow(0 0 8px rgba(212, 175, 55, 0.25))',
+            transition: 'filter 1.5s ease-in-out',
+          }}
+        >
+          {phase === 'hidden' || phase === 'fading' ? (
+            <span className="opacity-0">{text}</span>
+          ) : prefersReducedMotion ? (
+            <span>{text}</span>
+          ) : (
+            <LetterReveal text={text} delayMs={120} />
+          )}
+        </Display>
+      </div>
+    </div>
+  );
+
+  if (!standalone) return content;
+
   return (
     <Center className="fixed inset-0 z-20 h-full w-full pointer-events-none p-6">
       <Container maxWidth="lg" centered>
-        <div
-          data-preset={preset}
-          className={`relative flex flex-col items-center justify-center text-center transition-opacity duration-1000 ease-out will-change-transform ${className}`}
-          style={{
-            opacity: phase === 'hidden' ? 0 : 1,
-            transform: prefersReducedMotion
-              ? 'none'
-              : `translate3d(${parallax.x}px, ${parallax.y}px, 0)`,
-          }}
-        >
-          {/* Layer 1: Blurred Glow Depth Backdrop */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 z-0 flex items-center justify-center select-none blur-md opacity-60 animate-pulse pointer-events-none"
-            style={{
-              transform: 'scale(1.04) translate3d(0, 2px, 0)',
-            }}
-          >
-            <Display
-              font="garamond"
-              className="text-[clamp(3rem,7vw,6rem)] font-light tracking-[0.2em] text-[#d4af37]"
-            >
-              {text}
-            </Display>
-          </div>
-
-          {/* Layer 2: Main Animated Typography */}
-          <div
-            className={`relative z-10 select-none ${
-              phase === 'breathing' ? 'animate-[floatBreathing_7s_easeInOut_infinite]' : ''
-            }`}
-          >
-            <Display
-              font="garamond"
-              className="text-[clamp(3rem,7vw,6rem)] font-light tracking-[0.2em] leading-tight text-transparent bg-clip-text bg-[linear-gradient(110deg,#ffffff,45%,#d4af37,55%,#ffffff)] bg-[length:250%_100%] animate-[shimmerGradient_18s_linear_infinite]"
-              style={{
-                filter:
-                  phase === 'breathing'
-                    ? 'drop-shadow(0 0 16px rgba(212, 175, 55, 0.45))'
-                    : 'drop-shadow(0 0 8px rgba(212, 175, 55, 0.25))',
-                transition: 'filter 1.5s ease-in-out',
-              }}
-            >
-              {phase === 'hidden' || phase === 'fading' ? (
-                <span className="opacity-0">{text}</span>
-              ) : prefersReducedMotion ? (
-                <span>{text}</span>
-              ) : (
-                <LetterReveal text={text} delayMs={120} />
-              )}
-            </Display>
-          </div>
-        </div>
+        {content}
       </Container>
     </Center>
   );
