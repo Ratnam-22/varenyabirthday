@@ -2,11 +2,13 @@ import { eventBus } from '@/three/events/EventBus';
 import { experienceStateMachine } from '@/experience/state/ExperienceStateMachine';
 import { playCinematicTransition } from '@/animations/presets/cinematicTransition';
 import { accessibilityManager } from '@/experience/accessibility/AccessibilityManager';
+import { director } from './Director';
 import { SceneId } from '@/types/scene';
 
 export class TransitionDirector {
   private isListening: boolean = false;
   private isTransitioning: boolean = false;
+  private hasHandedOff: boolean = false;
 
   constructor() {
     this.initListeners();
@@ -34,6 +36,10 @@ export class TransitionDirector {
         isReducedMotion,
         onComplete: () => {
           this.isTransitioning = false;
+          if (!this.hasHandedOff) {
+            this.hasHandedOff = true;
+            director.orchestrateSceneChange('gift');
+          }
           if (onComplete) onComplete();
         },
       });
