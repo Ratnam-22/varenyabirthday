@@ -30,6 +30,13 @@ export class AccessibilityManager {
     return AccessibilityManager.instance;
   }
 
+  public getPreferences(): AccessibilitySettings {
+    if (typeof window !== 'undefined') {
+      this.settings.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+    return this.settings;
+  }
+
   public updateSettings(partial: Partial<AccessibilitySettings>): void {
     this.settings = { ...this.settings, ...partial };
   }

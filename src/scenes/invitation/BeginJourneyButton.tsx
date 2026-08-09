@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button/Button';
 import { Magnetic } from '@/components/ui/motion/Magnetic';
 import { Float } from '@/components/ui/motion/Float';
 import { eventBus } from '@/three/events/EventBus';
-import { experienceStateMachine } from '@/experience/state/ExperienceStateMachine';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { cn } from '@/utils/cn';
 
@@ -23,6 +22,7 @@ export const BeginJourneyButton: React.FC<BeginJourneyButtonProps> = ({
   const prefersReducedMotion = useReducedMotion();
   const [isVisible, setIsVisible] = useState(() => prefersReducedMotion);
   const [isPressed, setIsPressed] = useState(false);
+  const [hasTriggered, setHasTriggered] = useState(false);
 
   useEffect(() => {
     if (prefersReducedMotion) return;
@@ -35,14 +35,17 @@ export const BeginJourneyButton: React.FC<BeginJourneyButtonProps> = ({
   }, [delayMs, prefersReducedMotion]);
 
   const handleMouseEnter = () => {
+    if (hasTriggered) return;
     eventBus.emit('particle:sparkle');
   };
 
   const handleClick = () => {
+    if (hasTriggered) return;
+
+    setHasTriggered(true);
     setIsPressed(true);
     eventBus.emit('particle:burst');
     eventBus.emit('action:begin-journey');
-    experienceStateMachine.setState('Interacting');
 
     if (onAction) {
       onAction();
@@ -60,26 +63,29 @@ export const BeginJourneyButton: React.FC<BeginJourneyButtonProps> = ({
       className={cn(
         'transition-all duration-1000 ease-out pointer-events-auto will-change-transform',
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4',
+        hasTriggered && 'pointer-events-none opacity-40 blur-[1px]',
         className
       )}
     >
-      <Magnetic>
-        <Float>
+      <Magnetic disabled={hasTriggered}>
+        <Float disabled={hasTriggered}>
           <Button
             variant="glass"
             size="lg"
             role="button"
             aria-label="Begin Journey"
+            disabled={hasTriggered}
             onMouseEnter={handleMouseEnter}
             onClick={handleClick}
             className={cn(
               'relative group overflow-hidden px-10 py-4 text-base font-light tracking-[0.25em] uppercase text-[#fdfbf7]',
               'border border-[rgba(212,175,55,0.3)] bg-[rgba(18,19,28,0.65)] backdrop-blur-md rounded-full',
               'transition-all duration-500 ease-out focus-ring',
-              'hover:border-[rgba(212,175,55,0.7)] hover:shadow-[0_0_30px_rgba(212,175,55,0.35)] hover:-translate-y-0.5',
+              !hasTriggered &&
+                'hover:border-[rgba(212,175,55,0.7)] hover:shadow-[0_0_30px_rgba(212,175,55,0.35)] hover:-translate-y-0.5',
               isPressed ? 'scale-95 duration-150' : 'scale-100'
             )}
-            data-cursor-state="interactive"
+            data-cursor-state={hasTriggered ? 'default' : 'interactive'}
           >
             {/* Animated Gold Shimmer Border Accent */}
             <span

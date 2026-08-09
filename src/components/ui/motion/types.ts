@@ -4,6 +4,7 @@ export interface BaseMotionProps extends React.HTMLAttributes<HTMLDivElement> {
   as?: React.ElementType;
   delay?: number;
   duration?: number;
+  disabled?: boolean;
   children?: React.ReactNode;
   'data-testid'?: string;
 }

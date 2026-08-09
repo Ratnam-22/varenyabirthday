@@ -5,7 +5,8 @@ export type ExperienceState =
   | 'Interacting'
   | 'Paused'
   | 'Celebrating'
-  | 'Completed';
+  | 'Completed'
+  | 'ReadyForNextScene';
 
 export class ExperienceStateMachine {
   private static instance: ExperienceStateMachine;
