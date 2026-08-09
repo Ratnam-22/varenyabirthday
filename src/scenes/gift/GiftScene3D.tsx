@@ -14,15 +14,24 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 export const GiftScene3D: React.FC = () => {
   const groupRef = useRef<Group>(null);
-  const lidRef = useRef<Mesh>(null);
+  const lidPivotRef = useRef<Group>(null);
   const pointLightRef = useRef<PointLight>(null);
+  const interiorLightRef = useRef<PointLight>(null);
+
   const ribbonMatXRef = useRef<MeshStandardMaterial>(null);
   const ribbonMatZRef = useRef<MeshStandardMaterial>(null);
+  const ribbonXRef = useRef<Mesh>(null);
+  const ribbonZRef = useRef<Mesh>(null);
 
   const tier = useDeviceTier();
   const prefersReducedMotion = useReducedMotion();
   const { isDiscovered } = useGiftInteraction();
   const [glowPulse, setGlowPulse] = useState(false);
+
+  // Animation targets
+  const targetLidAngle = useRef(0);
+  const targetRibbonOffset = useRef(0);
+  const targetInteriorLight = useRef(0);
 
   // Dynamic particle count based on device performance tier
   const particleCount = useMemo(() => {
@@ -39,10 +48,28 @@ export const GiftScene3D: React.FC = () => {
   }, [tier]);
 
   useEffect(() => {
-    const unsub = eventBus.on('gift:discovered', () => {
+    const unsubDiscovered = eventBus.on('gift:discovered', () => {
       setGlowPulse(true);
     });
-    return () => unsub();
+
+    const unsubRibbon = eventBus.on('gift:ribbon-separate', () => {
+      targetRibbonOffset.current = 0.25;
+    });
+
+    const unsubLid = eventBus.on('gift:lid-open', () => {
+      targetLidAngle.current = -1.4;
+    });
+
+    const unsubLight = eventBus.on('gift:interior-light', () => {
+      targetInteriorLight.current = 4.0;
+    });
+
+    return () => {
+      unsubDiscovered();
+      unsubRibbon();
+      unsubLid();
+      unsubLight();
+    };
   }, []);
 
   useFrame((state) => {
@@ -60,6 +87,26 @@ export const GiftScene3D: React.FC = () => {
       groupRef.current.position.y += (breathY - groupRef.current.position.y) * 0.05;
       groupRef.current.rotation.x += (targetRotX - groupRef.current.rotation.x) * 0.05;
       groupRef.current.rotation.y += (targetRotY - groupRef.current.rotation.y) * 0.05;
+    }
+
+    // Lid hinge rotation interpolation
+    if (lidPivotRef.current) {
+      lidPivotRef.current.rotation.x +=
+        (targetLidAngle.current - lidPivotRef.current.rotation.x) * 0.04;
+    }
+
+    // Ribbon separation interpolation
+    if (ribbonXRef.current && ribbonZRef.current) {
+      ribbonXRef.current.position.y +=
+        (targetRibbonOffset.current - ribbonXRef.current.position.y) * 0.04;
+      ribbonZRef.current.position.y +=
+        (targetRibbonOffset.current - ribbonZRef.current.position.y) * 0.04;
+    }
+
+    // Interior light intensity interpolation
+    if (interiorLightRef.current) {
+      interiorLightRef.current.intensity +=
+        (targetInteriorLight.current - interiorLightRef.current.intensity) * 0.05;
     }
 
     // Light position following pointer
@@ -100,7 +147,7 @@ export const GiftScene3D: React.FC = () => {
 
       {/* Floating 3D Gift Box Geometry */}
       <group ref={groupRef} position={[0, 0, 0]}>
-        {/* Main Gift Body: Deep Charcoal Box */}
+        {/* Main Gift Body: Deep Charcoal Box Outer Shell */}
         <mesh position={[0, 0, 0]} castShadow receiveShadow>
           <boxGeometry args={[1.6, 1.4, 1.6]} />
           <meshPhysicalMaterial
@@ -112,19 +159,46 @@ export const GiftScene3D: React.FC = () => {
           />
         </mesh>
 
-        {/* Gift Lid: Deep Charcoal Top */}
-        <mesh ref={lidRef} position={[0, 0.75, 0]} castShadow receiveShadow>
-          <boxGeometry args={[1.68, 0.2, 1.68]} />
-          <meshPhysicalMaterial
-            color="#181924"
-            roughness={0.18}
-            metalness={0.85}
-            clearcoat={0.4}
-          />
+        {/* Interior Cavity Volume */}
+        <mesh position={[0, 0.05, 0]}>
+          <boxGeometry args={[1.48, 1.32, 1.48]} />
+          <meshStandardMaterial color="#0b0b10" roughness={0.9} metalness={0.1} />
         </mesh>
 
+        {/* Warm Golden Interior Cavity Light */}
+        <pointLight
+          ref={interiorLightRef}
+          position={[0, 0.2, 0]}
+          intensity={0.0}
+          color="#fcf6ba"
+          distance={6}
+          decay={2}
+        />
+
+        {/* Rear Hinge Pivot Group for Lid Assembly (pivoted at back edge: z = -0.8, y = 0.7) */}
+        <group ref={lidPivotRef} position={[0, 0.7, -0.8]}>
+          <group position={[0, 0.05, 0.8]}>
+            {/* Gift Lid Top */}
+            <mesh castShadow receiveShadow>
+              <boxGeometry args={[1.68, 0.2, 1.68]} />
+              <meshPhysicalMaterial
+                color="#181924"
+                roughness={0.18}
+                metalness={0.85}
+                clearcoat={0.4}
+              />
+            </mesh>
+
+            {/* Champagne Gold Knot/Bow Top */}
+            <mesh position={[0, 0.15, 0]}>
+              <torusGeometry args={[0.18, 0.05, 16, 32]} />
+              <meshStandardMaterial color="#fcf6ba" roughness={0.1} metalness={0.95} />
+            </mesh>
+          </group>
+        </group>
+
         {/* Ribbon Cross Vertical (X-axis) */}
-        <mesh position={[0, 0.01, 0]}>
+        <mesh ref={ribbonXRef} position={[0, 0.01, 0]}>
           <boxGeometry args={[1.64, 1.42, 0.22]} />
           <meshStandardMaterial
             ref={ribbonMatXRef}
@@ -137,7 +211,7 @@ export const GiftScene3D: React.FC = () => {
         </mesh>
 
         {/* Ribbon Cross Vertical (Z-axis) */}
-        <mesh position={[0, 0.01, 0]}>
+        <mesh ref={ribbonZRef} position={[0, 0.01, 0]}>
           <boxGeometry args={[0.22, 1.42, 1.64]} />
           <meshStandardMaterial
             ref={ribbonMatZRef}
@@ -147,12 +221,6 @@ export const GiftScene3D: React.FC = () => {
             roughness={0.1}
             metalness={0.95}
           />
-        </mesh>
-
-        {/* Champagne Gold Knot/Bow Top */}
-        <mesh position={[0, 0.9, 0]}>
-          <torusGeometry args={[0.18, 0.05, 16, 32]} />
-          <meshStandardMaterial color="#fcf6ba" roughness={0.1} metalness={0.95} />
         </mesh>
       </group>
 
